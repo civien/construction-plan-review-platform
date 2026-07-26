@@ -1,0 +1,23 @@
+# ===== 依赖（可重装，不入库）=====
+frontend/node_modules/
+node_modules/
+
+# ===== Python 缓存 =====
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# ===== 运行时产物（不入库，避免把审查历史/上传文件/设置混进代码版本）=====
+backend/data/
+.server.pid
+server.log
+
+# ===== 系统/编辑器 =====
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# 注意：frontend/dist（已构建前端）故意不忽略，一并纳入版本，
+# 这样 git checkout 到本标签即可恢复“能直接运行的好前端”。
