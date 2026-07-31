@@ -51,22 +51,48 @@ def delete_rule(type_):
     return False
 
 
+def types_tree():
+    """返回二级树：[{category, sub_types:[{type,name,display_name}]}]"""
+    tree, order = {}, []
+    for fp in sorted(glob.glob(os.path.join(RULES_DIR, '*.json'))):
+        try:
+            d = json.load(open(fp, encoding='utf-8'))
+        except Exception:
+            continue
+        cat = d.get('category', '未分类')
+        if cat not in tree:
+            tree[cat] = []
+            order.append(cat)
+        tree[cat].append({
+            'type': d.get('type', os.path.splitext(os.path.basename(fp))[0]),
+            'name': d.get('name', ''),
+            'display_name': d.get('display_name', d.get('name', '')),
+        })
+    return [{'category': c, 'sub_types': tree[c]} for c in order]
+
+
 def new_rule_template(type_):
     return {
         "type": type_,
-        "name": "新方案类型",
+        "name": type_,
+        "display_name": "新方案类型",
+        "category": "",
+        "applicable_scope": "",
+        "cover_chapters": "",
         "description": "请填写该类型方案的审查要点说明",
-        "directory_template": "# 第一章 工程概况\n## 一、项目简介\n",
         "severe_defects": [
-            {"no": "1", "category": "通用", "desc": "未明确主要施工工艺。", "location": "", "skill": ""}
+            {"no": "1", "category": "通用", "desc": "未明确主要施工工艺。", "location": "", "keywords": []}
         ],
         "norm_versions": {
-            "GB 55003-2021": {"name": "建筑与市政地基基础通用规范", "note": "强制性通用规范，必含", "wrong": ""}
+            "GB 55003-2021": {"latest": "GB 55003-2021", "wrong": "", "note": "强制性通用规范，必含"}
         },
         "checklist": [
             {"chapter": "2.1 整体评审", "subtag": "文本针对性", "req": "方案是否结合本工程特点编制专属措施？"}
         ],
+        "quick_conflict_checks": [
+            {"item": "示例矛盾检测项", "keywords": ["关键词A", "关键词B"], "check": "相关描述应保持一致"}
+        ],
         "cross_chapter_checks": [
-            {"key": "开挖深度", "keywords": ["开挖深度", "基坑深度", "坑底标高"], "chapters": "", "problem": ""}
+            {"key": "开挖深度", "chapters": "概况↔计算书", "problem": ""}
         ],
     }

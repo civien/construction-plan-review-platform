@@ -245,11 +245,28 @@ def analyze(full_text, structure, rules, template_text=''):
     severe = rules.get('severe_defects', []) or []
     checklist_count = len(rules.get('checklist', []) or [])
 
+    # 2.5 快速矛盾检测（2.0 新增）：关键词命中提取，供 LLM 做语义矛盾判定
+    quick_hits = []
+    for item in rules.get('quick_conflict_checks', []) or []:
+        kws = item.get('keywords', []) or []
+        occ = []
+        for i, ln in enumerate(lines):
+            if any(k in ln for k in kws):
+                occ.append({'line': i, 'text': ln.strip()})
+        quick_hits.append({
+            'item': item.get('item', ''),
+            'check': item.get('check', ''),
+            'keywords': kws,
+            'hit_count': len(occ),
+            'occ': occ[:20],
+        })
+
     skeleton = {
         'missing_chapters': missing_chapters,
         'doc_chapters': doc_chapters,
         'norm_findings': norm_findings,
         'consistency': consistency,
+        'quick_hits': quick_hits,
         'severe': severe,
         'checklist_count': checklist_count,
     }
@@ -401,9 +418,21 @@ def build_annotated_docx(input_docx, output_docx, findings, author='方案审查
 
 # ---------------- 4. Markdown 报告 ----------------
 def build_markdown_report(meta, skeleton, findings, used_llm):
+    RATING_MAP = {
+        'excellent': ('优秀方案', '✅', '方案质量优秀，问题极少，可直接通过审查。'),
+        'pass': ('合格方案', '🔵', '方案基本符合要求，存在少量可优化项，建议修改后通过。'),
+        'warn': ('待优化方案', '🟠', '方案存在较明显缺陷或矛盾，需重点修改后重新审查。'),
+        'fail': ('不合格方案', '❌', '方案存在严重缺陷或大量问题，必须全面修订后重新提交。'),
+    }
+    rating = meta.get('rating', '')
+    rlabel, ricon, rdesc = RATING_MAP.get(rating, ('未评级', '⚪', ''))
+
     lines = []
     lines.append(f"# 施工方案审查报告（{meta.get('type_name', '')}）")
     lines.append("")
+    if rating:
+        lines.append(f"> **综合评级：{ricon} {rlabel}** — {rdesc}")
+        lines.append("")
     lines.append(f"- 文件：{meta.get('filename', '')}")
     lines.append(f"- 审查时间：{meta.get('created_at', '')}")
     lines.append(f"- 引擎：{'大模型判读' if used_llm else '机械分析（未接入大模型）'}")
@@ -425,7 +454,13 @@ def build_markdown_report(meta, skeleton, findings, used_llm):
     for nf in skeleton.get('norm_findings', []):
         lines.append(f"- {nf.get('text', '')}")
     lines.append("")
-    lines.append("## 四、严重缺陷清单（一票否决项）")
+    lines.append("## 四、快速矛盾检测（2.0 新增）")
+    for q in skeleton.get('quick_hits', []):
+        lines.append(f"- **{q.get('item', '')}**｜命中 {q.get('hit_count', 0)} 处｜检查要点：{q.get('check', '')}")
+        for o in q.get('occ', [])[:3]:
+            lines.append(f"    - 第{o['line']}行：{o['text']}")
+    lines.append("")
+    lines.append("## 五、严重缺陷清单（一票否决项）")
     for s in skeleton.get('severe', []):
         lines.append(f"- {s.get('no', '')}. {s.get('desc', '')}")
     lines.append("")

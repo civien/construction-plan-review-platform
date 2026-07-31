@@ -32,7 +32,7 @@ app.add_middleware(
 # ---------------- 规则 ----------------
 @app.get("/api/types")
 def api_types():
-    return {"types": rules_store.list_types()}
+    return {"types": rules_store.types_tree()}
 
 
 @app.get("/api/rules/{type_}")
@@ -109,6 +109,47 @@ def api_test_llm(payload: dict):
     return test_connection(payload)
 
 
+def _compute_rating(findings, prev=None):
+    """根据 findings 的 severity 分布计算评级。
+    优秀(excellent): 无严重+无中度, 轻度≤2
+    合格(pass):     无严重, 中度≤2
+    待优化(warn):   有严重≥1 或 中度≥3
+    不合格(fail):   严重≥3 或 总问题数≥10
+
+    prev 为二次审查上下文 {"prev_total": int}，且本次问题数较上次减少时，
+    在基础评级上提升一级（最多到 excellent），鼓励修改后复审改进。
+    """
+    sev_counts = {"严重": 0, "中": 0, "轻": 0, "待核": 0}
+    for f in findings:
+        s = (f.get("severity") or "").strip()
+        if s in sev_counts:
+            sev_counts[s] += 1
+        else:
+            sev_counts["轻"] += 1  # 未标注 severity 视为轻
+
+    severe = sev_counts["严重"]
+    medium = sev_counts["中"]
+    light = sev_counts["轻"]
+    total = sum(sev_counts.values())
+
+    if severe >= 3 or total >= 10:
+        base = "fail"
+    elif severe >= 1 or medium >= 3:
+        base = "warn"
+    elif medium <= 2 and light <= 2:
+        base = "excellent"
+    else:
+        base = "pass"
+
+    if prev:
+        prev_total = prev.get("prev_total", 0) or 0
+        # 较上次减少问题数 → 评级提升一级（有改进）
+        if prev_total and total < prev_total:
+            order = ["fail", "warn", "pass", "excellent"]
+            base = order[min(len(order) - 1, order.index(base) + 1)]
+    return base
+
+
 # ---------------- 审查 ----------------
 @app.post("/api/review")
 async def api_review(file: UploadFile = File(...), type_: str = Form(...)):
@@ -155,13 +196,38 @@ async def api_review(file: UploadFile = File(...), type_: str = Form(...)):
         "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
     }
     report = build_markdown_report(meta, skeleton, findings, used_llm)
+
+    # 二次审查判定：同 type + 同 filename 已存在更早的审查记录
+    now_iso = datetime.datetime.now().isoformat(timespec="seconds")
+    prev_row = db.find_previous_review(type_, file.filename, now_iso)
+    is_re_review = False
+    prev_rating = ""
+    prev_total = 0
+    if prev_row:
+        is_re_review = True
+        prev_rating = prev_row.get("rating", "") or ""
+        try:
+            prev_total = len(json.loads(prev_row.get("findings_json", "[]") or "[]"))
+        except Exception:
+            prev_total = 0
+
+    # 评级计算（基于 findings 的 severity 分布；二次审查有改进则提升一级）
+    rating = _compute_rating(findings, prev={"prev_total": prev_total} if is_re_review else None)
+    meta["rating"] = rating
+    meta["is_re_review"] = is_re_review
+    meta["prev_rating"] = prev_rating
+    meta["prev_total"] = prev_total
+
     db.save_review(rid, type_, rules.get("name", type_), file.filename,
-                   used_llm, findings, report, out_docx)
+                   used_llm, findings, report, out_docx, rating,
+                   is_re_review=is_re_review, prev_rating=prev_rating,
+                   prev_total=prev_total, total=len(findings))
 
     return {
         "id": rid, "used_llm": used_llm,
         "findings": findings, "skeleton": skeleton,
-        "report": report, "gen": gen,
+        "report": report, "gen": gen, "rating": rating,
+        "is_re_review": is_re_review, "prev_rating": prev_rating, "prev_total": prev_total,
     }
 
 
@@ -200,6 +266,19 @@ def api_history_get(rid):
         raise HTTPException(404, "记录不存在")
     row["findings"] = json.loads(row["findings_json"])
     return row
+
+
+@app.delete("/api/history/{rid}")
+def api_history_delete(rid):
+    row = db.get_review(rid)
+    if not row:
+        raise HTTPException(404, "记录不存在")
+    # 删除关联的批注 docx 与历史目录
+    work = os.path.join(HISTORY, rid)
+    if os.path.isdir(work):
+        shutil.rmtree(work, ignore_errors=True)
+    db.delete_review(rid)
+    return {"ok": True}
 
 
 @app.get("/api/download/{rid}")

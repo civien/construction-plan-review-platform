@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>施工方案审查平台 2.0 · 高保真原型</title>
+<style>
+  :root{
+    --primary:#2563eb; --primary-d:#1e3a8a; --primary-l:#eff6ff;
+    --bg:#f5f7fa; --card:#ffffff; --border:#e5e7eb; --border-d:#cbd5e1;
+    --text:#1f2937; --muted:#6b7280; --muted-l:#9ca3af;
+    --red:#dc2626; --red-l:#fef2f2; --orange:#ea580c; --orange-l:#fff7ed;
+    --green:#16a34a; --green-l:#f0fdf4; --yellow:#ca8a04; --yellow-l:#fefce8;
+    --shadow:0 1px 3px rgba(15,23,42,.08); --shadow-m:0 4px 16px rgba(15,23,42,.10);
+    --radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  /* 顶栏 */
+  .topbar{height:56px;background:linear-gradient(90deg,var(--primary-d),var(--primary));
+    color:#fff;display:flex;align-items:center;padding:0 20px;gap:14px;position:sticky;top:0;z-index:30}
+  .logo{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.18);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+  .brand{font-size:16px;font-weight:600;letter-spacing:.5px}
+  .brand small{font-weight:400;opacity:.8;margin-left:8px;font-size:12px}
+  .topbar .spacer{flex:1}
+  .topbar .pill{background:rgba(255,255,255,.16);padding:4px 12px;border-radius:20px;font-size:12px}
+  /* 布局 */
+  .layout{display:flex;min-height:calc(100vh - 56px)}
+  .nav{width:204px;background:var(--card);border-right:1px solid var(--border);padding:14px 10px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;
+    color:var(--muted);cursor:pointer;font-weight:500;margin-bottom:4px;transition:.15s;font-size:14px}
+  .nav-item:hover{background:var(--bg);color:var(--text)}
+  .nav-item.active{background:var(--primary-l);color:var(--primary-d);font-weight:600}
+  .nav-item .ico{width:18px;text-align:center;font-size:15px}
+  .content{flex:1;padding:22px 26px;overflow:auto}
+  .page-title{font-size:20px;font-weight:700;margin-bottom:4px}
+  .page-sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+  /* 卡片 */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:18px}
+  .card + .card{margin-top:16px}
+  .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .card-h h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .card-h .tag{font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:6px}
+  /* 两栏工作区 */
+  .work{display:grid;grid-template-columns:268px 1fr;gap:18px;align-items:start}
+  .tree{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:12px}
+  .tree-search{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+    font-size:13px;margin-bottom:10px;outline:none}
+  .tree-search:focus{border-color:var(--primary)}
+  .cat{margin-bottom:6px}
+  .cat-h{display:flex;align-items:center;gap:8px;padding:8px 8px;cursor:pointer;border-radius:8px;
+    font-weight:600;font-size:13.5px;color:var(--text);user-select:none}
+  .cat-h:hover{background:var(--bg)}
+  .cat-h .arr{transition:.2s;color:var(--muted);font-size:11px}
+  .cat.collapsed .arr{transform:rotate(-90deg)}
+  .cat.collapsed .subs{display:none}
+  .subs{margin:2px 0 6px 6px;border-left:2px solid var(--border);padding-left:8px}
+  .sub{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;
+    font-size:13px;color:var(--muted);transition:.12s}
+  .sub:hover{background:var(--bg);color:var(--text)}
+  .sub.active{background:var(--primary-l);color:var(--primary-d);font-weight:600}
+  .sub .dot{width:6px;height:6px;border-radius:50%;background:var(--border-d)}
+  .sub.active .dot{background:var(--primary)}
+  /* 匹配提示条 */
+  .matchbar{background:var(--primary-l);border:1px solid #bfdbfe;border-radius:8px;
+    padding:12px 14px;display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--primary-d)}
+  .matchbar .ok{width:20px;height:20px;border-radius:50%;background:var(--primary);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+  .matchbar.empty{background:var(--bg);border-color:var(--border);color:var(--muted)}
+  /* 上传区 */
+  .upload{border:2px dashed var(--border-d);border-radius:10px;padding:30px;text-align:center;
+    color:var(--muted);cursor:pointer;transition:.15s;background:#fafbfc}
+  .upload:hover{border-color:var(--primary);background:var(--primary-l);color:var(--primary-d)}
+  .upload .big{font-size:30px;margin-bottom:8px}
+  .upload.disabled{opacity:.5;pointer-events:none}
+  /* 表单 */
+  .field{margin-top:14px}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:500}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  select,input[type=text],input[type=password]{width:100%;padding:9px 11px;border:1px solid var(--border);
+    border-radius:8px;font-size:13.5px;outline:none;background:#fff;color:var(--text)}
+  select:focus,input:focus{border-color:var(--primary)}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:8px;
+    background:var(--primary);color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  .btn:hover{background:var(--primary-d)}
+  .btn:disabled{background:var(--border-d);color:#fff;cursor:not-allowed}
+  .btn.ghost{background:#fff;color:var(--primary);border:1px solid var(--primary)}
+  .btn.ghost:hover{background:var(--primary-l)}
+  /* 折叠分区 Accordion */
+  .acc{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
+  .acc-h{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;
+    background:#fafbfc;user-select:none;font-weight:600;font-size:14px}
+  .acc-h:hover{background:var(--bg)}
+  .acc-h .arr{margin-left:auto;color:var(--muted);transition:.2s;font-size:12px}
+  .acc.open .arr{transform:rotate(90deg)}
+  .acc-b{padding:4px 14px 14px;display:none}
+  .acc.open .acc-b{display:block}
+  .acc-ico{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;color:#fff;flex:none}
+  .ic-red{background:var(--red)} .ic-orange{background:var(--orange)} .ic-green{background:var(--green)}
+  .ic-blue{background:var(--primary)} .ic-yellow{background:var(--yellow)}
+  /* 表格 */
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:var(--bg);color:var(--muted);font-weight:600;font-size:12.5px}
+  tbody tr:hover{background:#fafbfc}
+  .kw{display:inline-block;background:var(--primary-l);color:var(--primary-d);font-size:11px;
+    padding:1px 7px;border-radius:5px;margin:1px 3px 1px 0}
+  .sev-no{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--red-l);
+    color:var(--red);font-size:11px;font-weight:700;align-items:center;justify-content:center;flex:none}
+  .badge{font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600}
+  .b-ok{background:var(--green-l);color:var(--green)} .b-warn{background:var(--orange-l);color:var(--orange)}
+  .b-ver{background:var(--blue,#e0edff);color:var(--primary-d)}
+  /* 结果区空态 */
+  .empty-state{text-align:center;color:var(--muted-l);padding:50px 20px}
+  .empty-state .big{font-size:42px;margin-bottom:10px}
+  /* 模型卡片 */
+  .prov-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .prov{border:2px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;text-align:center;transition:.15s;background:#fff}
+  .prov:hover{border-color:var(--border-d)}
+  .prov.active{border-color:var(--primary);background:var(--primary-l)}
+  .prov .pv-ico{font-size:24px;margin-bottom:6px}
+  .prov .pv-name{font-weight:600;font-size:13.5px}
+  .hint{font-size:12.5px;color:var(--muted);background:var(--bg);padding:10px 12px;border-radius:8px;margin-top:10px}
+  /* 滚动条 */
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:5px}
+  ::-webkit-scrollbar-thumb:hover{background:#9ca3af}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+  <!-- 顶栏 -->
+  <div class="topbar">
+    <div class="logo">审</div>
+    <div class="brand">施工方案审查平台 <small>2.0 · 高保真原型</small></div>
+    <div class="spacer"></div>
+    <div class="pill">v2.0-prototype</div>
+  </div>
+
+  <div class="layout">
+    <!-- 主导航 -->
+    <div class="nav">
+      <div class="nav-item active" data-page="review"><span class="ico">🔍</span>审查工作台</div>
+      <div class="nav-item" data-page="rules"><span class="ico">📚</span>规则管理</div>
+      <div class="nav-item" data-page="model"><span class="ico">⚙️</span>模型设置</div>
+      <div class="nav-item" data-page="history"><span class="ico">🕘</span>审查历史</div>
+    </div>
+
+    <!-- 内容区 -->
+    <div class="content">
+      <!-- ============ 审查工作台 ============ -->
+      <section id="page-review">
+        <div class="page-title">审查工作台</div>
+        <div class="page-sub">选择方案类型（自动匹配规则）→ 上传方案 → 启动审查。支持严重缺陷核查、详细核查清单、快速矛盾检测（2.0 新增）、跨章节一致性、规范版本核查。</div>
+        <div class="work">
+          <!-- 左：方案类型二级树 -->
+          <div class="tree">
+            <input class="tree-search" placeholder="搜索方案类型…" id="typeSearch" />
+            <div id="typeTree"></div>
+          </div>
+          <!-- 右：上传 + 结果 -->
+          <div>
+            <div class="matchbar empty" id="matchBar">
+              <span class="ok">●</span><span id="matchText">请先在左侧选择二级方案类型，系统将自动匹配对应审查规则</span>
+            </div>
+            <div class="card" style="margin-top:14px">
+              <div class="card-h"><h3>📄 上传施工方案</h3><span class="tag">支持 .docx</span></div>
+              <div class="upload disabled" id="drop">
+                <div class="big">⬆</div>
+                点击或拖拽施工方案文件到此处<br><span style="font-size:12px">（.docx 格式）</span>
+              </div>
+              <div class="field">
+                <label>审查模型</label>
+                <div class="row2">
+                  <select id="prov"><option>DeepSeek</option><option>通义千问</option><option>智谱 AI</option><option>Kimi</option></select>
+                  <input type="text" id="modelName" value="deepseek-v4-flash" list="models" />
+                  <datalist id="models"><option value="deepseek-v4-flash"><option value="deepseek-v4-pro"><option value="deepseek-chat"></datalist>
+                </div>
+              </div>
+              <div style="margin-top:16px;display:flex;gap:10px">
+                <button class="btn" id="startBtn" disabled>🚀 启动审查</button>
+                <button class="btn ghost" disabled>📝 生成示例报告</button>
+              </div>
+            </div>
+            <!-- 结果区 -->
+            <div class="card" id="resultCard">
+              <div class="empty-state">
+                <div class="big">🗂</div>
+                选择方案类型并上传文件后，审查结果将在此展示<br>
+                <span style="font-size:12.5px">结果含：严重缺陷核查 · 详细核查清单 · 快速矛盾检测 · 跨章节一致性 · 规范版本核查</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 规则管理 ============ -->
+      <section id="page-rules" class="hidden">
+        <div class="page-title">规则管理</div>
+        <div class="page-sub">按「一级大类 → 二级子类型」组织。点击子类型查看规则详情，长内容以可折叠分区呈现，支持单条编辑 / 新增 / 删除。</div>
+        <div class="work">
+          <div class="tree">
+            <input class="tree-search" placeholder="搜索规则…" id="ruleSearch" />
+            <div id="ruleTree"></div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-h">
+                <h3 id="ruleTitle">规则详情</h3>
+                <span class="tag" id="ruleScope">选择左侧子类型查看</span>
+              </div>
+              <div id="ruleBody">
+                <div class="empty-state"><div class="big">📚</div>从左侧选择一项审查规则以查看详情</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 模型设置 ============ -->
+      <section id="page-model" class="hidden">
+        <div class="page-title">模型设置</div>
+        <div class="page-sub">配置国产大模型供应商与 API 密钥，用于驱动 LLM 审查。</div>
+        <div class="card">
+          <div class="card-h"><h3>🔌 选择供应商</h3></div>
+          <div class="prov-grid" id="provGrid">
+            <div class="prov active" data-p="deepseek"><div class="pv-ico">🧠</div><div class="pv-name">DeepSeek</div></div>
+            <div class="prov" data-p="qwen"><div class="pv-ico">🌟</div><div class="pv-name">通义千问</div></div>
+            <div class="prov" data-p="zhipu"><div class="pv-ico">📐</div><div class="pv-name">智谱 AI</div></div>
+            <div class="prov" data-p="kimi"><div class="pv-ico">🌙</div><div class="pv-name">Kimi</div></div>
+          </div>
+          <div class="field">
+            <label>模型名称</label>
+            <input type="text" value="deepseek-v4-flash" list="models2" />
+            <datalist id="models2"><option value="deepseek-v4-flash"><option value="deepseek-v4-pro"><option value="deepseek-chat"></datalist>
+          </div>
+          <div class="field">
+            <label>API Key</label>
+            <input type="password" placeholder="sk-********************" />
+          </div>
+          <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+            <button class="btn">✓ 测试连接</button>
+            <span class="badge b-ok">● 连接正常</span>
+          </div>
+          <div class="hint">提示：默认模型已设为 <b>deepseek-v4-flash</b>。密钥仅保存在本地数据库，不会上传。</div>
+        </div>
+      </section>
+
+      <!-- ============ 审查历史 ============ -->
+      <section id="page-history" class="hidden">
+        <div class="page-title">审查历史</div>
+        <div class="page-sub">历次审查记录与报告存档。</div>
+        <div class="card"><div class="empty-state"><div class="big">🕘</div>暂无审查记录</div></div>
+      </section>
+    </div>
+  </div>
+
+<script>
+/* ===== 数据：10 大类 / 34 子类型（来自施工方案评审规则目录） ===== */
+const CATEGORIES = [
+  {name:"基坑工程专项施工方案的详细评审要点", subs:["SMW工法桩审查要点","放坡审查要点","锚杆支护审查要点","土钉墙支护审查要点","钢板桩支护审查要点","灌注桩排桩支护审查要点"]},
+  {name:"脚手架工程方案审查要点", subs:["悬挑扣件式脚手架","悬挑盘扣式脚手架","落地扣件式脚手架","落地盘扣式脚手架","吊篮","卸料平台(悬挑)","卸料平台(落地扣件)","卸料平台(落地盘扣)"]},
+  {name:"模板及支撑体系工程审查要点", subs:["高支模扣件式","翻模工程专项施工方案","高支模盘扣式"]},
+  {name:"起重吊装及安装拆卸工程审查要点", subs:["履带吊","龙门吊","塔式起重机","施工升降机","构件设备吊装单机","构件设备吊装多机抬吊"]},
+  {name:"风电工程施工方案", subs:["海上风机吊装","陆上混塔吊装","陆上钢塔吊装","塔筒风机运输"]},
+  {name:"光伏工程施工方案", subs:["山地光伏安装(含运输)"]},
+  {name:"人工挖孔桩工程施工方案", subs:["人工挖孔桩"]},
+  {name:"暗挖工程施工方案审查要点", subs:["盾构","顶管沉井"]},
+  {name:"临时用电工程施工方案审查要点", subs:["临时用电"]},
+  {name:"钢结构安装工程专项施工方案评审要点", subs:["钢结构安装","网架安装"]},
+];
+
+/* ===== 示例规则详情（翻模，真实 POC 解析数据） ===== */
+const SAMPLE_RULE = {
+  display_name:"翻模工程专项施工方案评审要点",
+  scope:"翻模（液压爬升翻模）工程专项施工方案的评审工作",
+  severe:[
+    {no:1,cat:"翻模工程",desc:"爬模（翻模）无附着支撑、承载体设计。",loc:"第4.2节(施工工艺技术)",kw:["附着支撑","承载体","附墙装置","预埋件"]},
+    {no:2,cat:"翻模工程",desc:"滑模（翻模）施工无混凝土强度保证及监测措施。",loc:"第4.3节/第5.3节",kw:["混凝土强度","出模强度","贯入阻力","同条件养护试块"]},
+    {no:3,cat:"翻模工程",desc:"未明确翻模爬升时混凝土强度要求（新浇不应低于1.2N/mm²，附墙螺栓处不应低于10N/mm²）。",loc:"第4.3节/第8.2节",kw:["爬升时混凝土强度","1.2N/mm²","10N/mm²","附墙螺栓"]},
+    {no:4,cat:"翻模工程",desc:"无翻模架体垂直度、偏移方向的监测措施及预警值。",loc:"第5.3节",kw:["垂直度","偏移方向","水平位移","监测点"]},
+    {no:5,cat:"翻模工程",desc:"未明确翻模与塔吊、施工电梯、布料机等的相互关系及爬升规划。",loc:"第3.1节/第4.2节",kw:["塔吊","施工电梯","布料机","爬升规划","冲突"]},
+    {no:6,cat:"翻模工程",desc:"未明确翻模架体各层平台施工荷载限值及超载控制措施。",loc:"第4.4节/第5.2节",kw:["施工荷载","限载","超载","平台荷载"]},
+  ],
+  norm:[
+    {name:"《液压爬升模板工程技术规程》",latest:"JGJ 195-2018",wrong:"—",note:"核心规范，翻模工程首选"},
+    {name:"《滑动模板工程技术标准》",latest:"GB/T 50113-2019",wrong:"GB 50113-2005（已废止）",note:"滑模工程核心规范"},
+    {name:"《建筑施工模板安全技术规范》",latest:"JGJ 162-2008",wrong:"—",note:"行业标准，辅助规范"},
+    {name:"《混凝土结构工程施工质量验收规范》",latest:"GB 50204-2015",wrong:"GB 50204-2002（已废止）",note:"模板分项验收时需列入"},
+    {name:"《建筑结构荷载规范》",latest:"GB 50009-2012",wrong:"—",note:"荷载取值时需列入"},
+  ],
+  quick:[
+    {item:"架体荷载限值 vs 计算书",kw:["施工荷载","限载","平台荷载"],chk:"各层平台荷载限值应与计算书一致，不得超设计值"},
+    {item:"爬升混凝土强度 vs 工艺要求",kw:["1.2N/mm²","10N/mm²","附墙螺栓"],chk:"爬升强度要求与施工方法章节描述须一致"},
+    {item:"监测点布置 vs 方案图",kw:["监测点","垂直度","水平位移"],chk:"监测点数量/位置应与图纸、监测方案一致"},
+  ],
+  cross:[
+    {key:"基坑深度 vs 桩长",ch:"概况↔技术参数↔计算书↔图纸",prob:"概况深12m，计算书嵌固6m，前后矛盾"},
+    {key:"爬升规划 vs 塔吊布置",ch:"施工计划↔工艺技术",prob:"爬升节奏与塔吊作业冲突未说明"},
+  ],
+};
+
+/* ===== 导航切换 ===== */
+document.querySelectorAll('.nav-item').forEach(n=>{
+  n.onclick=()=>{
+    document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+    n.classList.add('active');
+    const p=n.dataset.page;
+    ['review','rules','model','history'].forEach(id=>{
+      document.getElementById('page-'+id).classList.toggle('hidden',id!==p);
+    });
+  };
+});
+
+/* ===== 渲染方案类型树（审查工作台） ===== */
+function renderTypeTree(filter=""){
+  const root=document.getElementById('typeTree');root.innerHTML='';
+  CATEGORIES.forEach((c,ci)=>{
+    const subs=c.subs.filter(s=>s.includes(filter));
+    if(!subs.length) return;
+    const cat=document.createElement('div');cat.className='cat';
+    const h=document.createElement('div');h.className='cat-h';
+    h.innerHTML=`<span class="arr">▾</span><span>${c.name}</span><span style="margin-left:auto;color:var(--muted-l);font-size:11px">${subs.length}</span>`;
+    h.onclick=()=>cat.classList.toggle('collapsed');
+    const box=document.createElement('div');box.className='subs';
+    subs.forEach(s=>{
+      const el=document.createElement('div');el.className='sub';
+      el.innerHTML=`<span class="dot"></span>${s}`;
+      el.onclick=()=>{selectType(c.name,s,el);};
+      box.appendChild(el);
+    });
+    cat.appendChild(h);cat.appendChild(box);root.appendChild(cat);
+  });
+}
+function selectType(cat,name,el){
+  document.querySelectorAll('#typeTree .sub').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  const bar=document.getElementById('matchBar');
+  bar.classList.remove('empty');
+  document.getElementById('matchText').innerHTML=`<b>已匹配规则：</b>${name}　<span style="opacity:.7">（大类：${cat}）</span>`;
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('drop').classList.remove('disabled');
+}
+renderTypeTree();
+document.getElementById('typeSearch').oninput=e=>renderTypeTree(e.target.value.trim());
+
+/* ===== 渲染规则树（规则管理，复用同一结构） ===== */
+function renderRuleTree(filter=""){
+  const root=document.getElementById('ruleTree');root.innerHTML='';
+  CATEGORIES.forEach(c=>{
+    const subs=c.subs.filter(s=>s.includes(filter));
+    if(!subs.length) return;
+    const cat=document.createElement('div');cat.className='cat';
+    const h=document.createElement('div');h.className='cat-h';
+    h.innerHTML=`<span class="arr">▾</span><span>${c.name}</span><span style="margin-left:auto;color:var(--muted-l);font-size:11px">${subs.length}</span>`;
+    h.onclick=()=>cat.classList.toggle('collapsed');
+    const box=document.createElement('div');box.className='subs';
+    subs.forEach(s=>{
+      const el=document.createElement('div');el.className='sub';
+      el.innerHTML=`<span class="dot"></span>${s}`;
+      el.onclick=()=>{selectRule(c.name,s,el);};
+      box.appendChild(el);
+    });
+    cat.appendChild(h);cat.appendChild(box);root.appendChild(cat);
+  });
+}
+function selectRule(cat,name,el){
+  document.querySelectorAll('#ruleTree .sub').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  const r=SAMPLE_RULE;
+  document.getElementById('ruleTitle').textContent=name;
+  document.getElementById('ruleScope').textContent='大类：'+cat;
+  const kw=(a)=>a.map(k=>`<span class="kw">${k}</span>`).join('');
+  document.getElementById('ruleBody').innerHTML=`
+    <div class="hint" style="margin-top:0;margin-bottom:14px">适用范围：${r.scope}</div>
+
+    <div class="acc open">
+      <div class="acc-h" onclick="this.parentElement.classList.toggle('open')">
+        <span class="acc-ico ic-red">!</span>专用严重缺陷清单
+        <span class="badge b-warn" style="margin-left:8px">${r.severe.length} 项</span><span class="arr">▶</span></div>
+      <div class="acc-b"><table><thead><tr><th style="width:34px">#</th><th>缺陷情形</th><th>定位章节</th><th>关键词（机器定位）</th></tr></thead>
+      <tbody>${r.severe.map(s=>`<tr><td><span class="sev-no">${s.no}</span></td><td>${s.desc}</td><td style="color:var(--muted)">${s.loc}</td><td>${kw(s.kw)}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+
+    <div class="acc open">
+      <div class="acc-h" onclick="this.parentElement.classList.toggle('open')">
+        <span class="acc-ico ic-yellow">✓</span>规范版本有效性核查
+        <span class="badge b-ok" style="margin-left:8px">${r.norm.length} 项</span><span class="arr">▶</span></div>
+      <div class="acc-b"><table><thead><tr><th>规范名称</th><th>最新版本</th><th>已废止/旧版</th><th>说明</th></tr></thead>
+      <tbody>${r.norm.map(n=>`<tr><td>${n.name}</td><td><span class="badge b-ok">${n.latest}</span></td><td>${n.wrong==='—'?'<span style="color:var(--muted-l)">—</span>':`<span class="badge b-warn">${n.wrong}</span>`}</td><td style="color:var(--muted)">${n.note}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+
+    <div class="acc">
+      <div class="acc-h" onclick="this.parentElement.classList.toggle('open')">
+        <span class="acc-ico ic-blue">☰</span>详细核查清单（2.2–2.10）
+        <span class="badge b-ver" style="margin-left:8px">104 条</span><span class="arr">▶</span></div>
+      <div class="acc-b"><div class="hint">逐章节「是否…」核查项（工程概况 / 编制依据 / 施工计划 / 施工工艺技术 / 保证措施 / 管理分工 / 验收 / 应急 / 计算书图纸）。示例条目：<br>
+      • 是否包含工程基本情况与周边环境描述？<br>• 是否明确主要施工机械设备型号与数量？<br>• 是否提供模板及支撑体系计算书？</div></div>
+    </div>
+
+    <div class="acc">
+      <div class="acc-h" onclick="this.parentElement.classList.toggle('open')">
+        <span class="acc-ico ic-orange">⚡</span>快速矛盾检测（2.1.1 · 2.0 新增）
+        <span class="badge b-warn" style="margin-left:8px">${r.quick.length} 项</span><span class="arr">▶</span></div>
+      <div class="acc-b"><table><thead><tr><th>检测项</th><th>搜索关键词</th><th>一致性检查要点</th></tr></thead>
+      <tbody>${r.quick.map(q=>`<tr><td>${q.item}</td><td>${kw(q.kw)}</td><td style="color:var(--muted)">${q.chk}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+
+    <div class="acc">
+      <div class="acc-h" onclick="this.parentElement.classList.toggle('open')">
+        <span class="acc-ico ic-green">⇄</span>跨章节一致性检查（2.11）
+        <span class="badge b-ok" style="margin-left:8px">${r.cross.length} 项</span><span class="arr">▶</span></div>
+      <div class="acc-b"><table><thead><tr><th>一致性检查项</th><th>关联章节</th><th>常见问题示例</th></tr></thead>
+      <tbody>${r.cross.map(x=>`<tr><td>${x.key}</td><td style="color:var(--muted)">${x.ch}</td><td style="color:var(--muted)">${x.prob}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button class="btn ghost">✎ 编辑规则</button><button class="btn ghost">＋ 新增条目</button>
+    </div>`;
+}
+renderRuleTree();
+document.getElementById('ruleSearch').oninput=e=>renderRuleTree(e.target.value.trim());
+
+/* ===== 模型设置：供应商选择 ===== */
+document.querySelectorAll('#provGrid .prov').forEach(p=>{
+  p.onclick=()=>{document.querySelectorAll('#provGrid .prov').forEach(x=>x.classList.remove('active'));p.classList.add('active');};
+});
+
+/* ===== 上传区点击（演示） ===== */
+document.getElementById('drop').onclick=()=>{
+  if(document.getElementById('drop').classList.contains('disabled'))return;
+  alert('演示原型：此处将打开文件选择并上传 .docx');
+};
+</script>
+</body>
+</html>

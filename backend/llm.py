@@ -101,18 +101,23 @@ def build_review_messages(rules, full_text, skeleton):
     """组装审查 Prompt：系统提示 + 规则 + 全文 + 机械分析骨架。"""
     severe = "\n".join(
         f"{s.get('no','')}. {s.get('desc','')}"
-        + (f"（常见位置：{s['location']}；检查技巧：{s['skill']}）" if s.get('location') else "")
+        + (f"（常见位置：{s.get('location','')}；定位关键词：{','.join(s.get('keywords',[]))}）"
+           if s.get('location') or s.get('keywords') else "")
         for s in rules.get('severe_defects', []))
     norm = "\n".join(
-        f"- {c}（{v.get('name','')}）：有效版本 {c}"
-        + (f"，常见错误版本：{v['wrong']}" if v.get('wrong') else "")
-        + (f"；{v['note']}" if v.get('note') else "")
+        f"- {c}：有效版本 {v.get('latest', c)}"
+        + (f"（{v.get('name','')}）" if v.get('name') else "")
+        + (f"，常见错误版本：{v.get('wrong','')}" if v.get('wrong') else "")
+        + (f"；{v.get('note','')}" if v.get('note') else "")
         for c, v in (rules.get('norm_versions', {}) or {}).items())
     cross = "\n".join(
-        f"- {item.get('key','')}：关键词 {item.get('keywords',[])}"
-        + (f"；需比对章节：{item['chapters']}" if item.get('chapters') else "")
-        + (f"；常见问题：{item['problem']}" if item.get('problem') else "")
+        f"- {item.get('key','')}：需比对章节 {item.get('chapters','')}"
+        + (f"；常见问题：{item.get('problem','')}" if item.get('problem') else "")
         for item in rules.get('cross_chapter_checks', []))
+    quick = "\n".join(
+        f"- {item.get('item','')}：搜索关键词 {item.get('keywords',[])}"
+        + (f"；检查要点：{item.get('check','')}" if item.get('check') else "")
+        for item in rules.get('quick_conflict_checks', []))
     # 核查清单按章节分组
     chapters = {}
     for c in rules.get('checklist', []) or []:
@@ -136,7 +141,10 @@ def build_review_messages(rules, full_text, skeleton):
         "3. severity 取值：严重 / 中 / 轻 / 待核 / 总评。严重缺陷（一票否决）命中时标‘严重’。\n"
         "4. text 为批注正文，可含换行，说明问题、依据与整改建议，简洁专业。\n"
         "5. 必须包含一条 severity='总评' 的全局结论。\n"
-        "6. 只输出 JSON 对象，格式：{\"findings\": [ {\"anchor\": \"...\", \"severity\": \"...\", \"text\": \"...\"} ]}，"
+        "6. 对【快速矛盾检测项】中的每组关键词，请在全文交叉比对，若同一参数前后描述不一致（如深度、强度、荷载、尺寸），"
+        "给出 severity='中' 的 finding 并指出矛盾点；对【规范版本有效性表】请核对文档引用版本是否过期；"
+        "对【跨章节一致性检查项】请核对关联章节数值是否一致。\n"
+        "7. 只输出 JSON 对象，格式：{\"findings\": [ {\"anchor\": \"...\", \"severity\": \"...\", \"text\": \"...\"} ]}，"
         "不要输出任何额外说明文字。"
     )
 
@@ -145,8 +153,9 @@ def build_review_messages(rules, full_text, skeleton):
         f"## 严重缺陷清单（一票否决，逐条确认是否触发）\n{severe}\n\n"
         f"## 规范版本有效性表（有效版本须据此核对）\n{norm}\n\n"
         f"## 跨章节一致性检查项\n{cross}\n\n"
+        f"## 快速矛盾检测项（请交叉比对文档中这些关键词，判定前后是否矛盾）\n{quick}\n\n"
         f"## 核查清单要点（按章节分类）\n{checklist}\n\n"
-        f"# 机械分析骨架（结构缺口/规范版本/跨章节取值，供你参考，最终判定以你结合全文为准）\n"
+        f"# 机械分析骨架（结构缺口/规范版本/快速矛盾命中，供你参考，最终判定以你结合全文为准）\n"
         f"{json.dumps(skeleton, ensure_ascii=False, indent=2)[:6000]}\n\n"
         f"# 施工方案全文\n{full_text[:MAX_FULLTEXT_CHARS]}\n\n"
         "请按上述要求输出 findings JSON。"
