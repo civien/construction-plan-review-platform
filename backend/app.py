@@ -96,7 +96,7 @@ def api_save_settings(payload: dict):
         "temperature": payload.get("temperature", s.get("temperature", 0.2)),
     }
     ak = payload.get("api_key", "")
-    if ak and ak != "***":
+    if ak and "•" not in ak and ak != "***":
         new["api_key"] = ak
     else:
         new["api_key"] = s.get("api_key", "")
@@ -106,7 +106,23 @@ def api_save_settings(payload: dict):
 
 @app.post("/api/llm/test")
 def api_test_llm(payload: dict):
-    return test_connection(payload)
+    # 以已保存配置为基线（与真实审查路径 db.get_settings() 一致）；
+    # 仅当用户确实输入了非空值才覆盖。前端在「未改动密钥」时会传空串表示保留，
+    # 此处回退使用已持久化密钥，避免“测试连接”误报“失效”。
+    stored = db.get_settings()
+    ak = payload.get("api_key") or ""
+    if "•" in ak:          # 防御：掩码串不是真实密钥，应回退到已保存值
+        ak = ""
+    merged = {
+        "provider": payload.get("provider") or stored.get("provider", "deepseek"),
+        "model":    payload.get("model")    or stored.get("model", ""),
+        "base_url": payload.get("base_url") or stored.get("base_url", ""),
+        "api_key":  ak or stored.get("api_key", ""),
+        "temperature": stored.get("temperature", 0.2),
+    }
+    if not merged.get("api_key"):
+        return {"ok": False, "message": "尚未配置 API Key，请先填写并保存"}
+    return test_connection(merged)
 
 
 def _compute_rating(findings, prev=None):
