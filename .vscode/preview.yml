@@ -1,0 +1,8 @@
+autoOpen: true
+apps:
+  - port: 8000
+    run: bash run_cloud.sh
+    root: ./
+    name: 施工方案审查平台
+    description: 施工方案审查平台 2.0 (FastAPI + React 全栈)
+    autoOpen: true
