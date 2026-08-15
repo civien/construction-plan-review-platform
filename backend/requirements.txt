@@ -1,0 +1,7 @@
+# 施工方案审查平台 — 后端 Python 依赖
+# 安装：pip install -r requirements.txt
+fastapi>=0.110.0
+uvicorn>=0.27.0
+python-docx>=1.1.0
+lxml>=5.0.0
+requests>=2.31.0
