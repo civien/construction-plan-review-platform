@@ -169,6 +169,17 @@ def _compute_rating(findings, prev=None):
 # ---------------- 审查 ----------------
 @app.post("/api/review")
 async def api_review(file: UploadFile = File(...), type_: str = Form(...)):
+    try:
+        return _do_review(file, type_)
+    except HTTPException:
+        raise  # 业务错误（400/502 等）原样透传
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()[-1800:]
+        raise HTTPException(500, f"审查内部异常[{type(e).__name__}]：{e}\n{tb}")
+
+
+def _do_review(file, type_):
     if not file.filename.lower().endswith(".docx"):
         raise HTTPException(400, "仅支持 .docx 文件")
     rules = rules_store.get_rule(type_)
